@@ -1,0 +1,222 @@
+﻿@model WebApi.Models.OpenWeatherMap
+<style>
+
+    .searchArea{
+       width:400px;
+       height:auto;
+    }
+    #searchAreaDetail{
+         width:auto;
+    }
+    #btn_curLocation{
+        margin:5px 0px; width:auto;
+    }
+    .foreCastArea{
+        width:auto;
+    }
+    .itemfc{
+        float:left;
+        width:100px;
+        margin-left:10px;
+    }
+    #map{
+        background-color:gray;
+    }
+  
+    fieldset.scheduler-border {
+        border: 1px groove #ddd !important;
+        padding: 0 1.4em 1.4em 1.4em !important;
+        margin: 0 0 1.5em 0 !important;
+        -webkit-box-shadow:  0px 0px 0px 0px #000;
+                box-shadow:  0px 0px 0px 0px #000;
+        width:30%;
+    }
+     legend.scheduler-border {
+        font-size: 1.2em !important;
+        font-weight: bold !important;
+        text-align: left !important;
+        width:auto;
+        padding:0 10px;
+        border-bottom:none;
+    }
+     
+     .card {
+        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+        transition: 0.3s;
+        margin: 10px 10px 10px 10px;
+    }
+     .card-header{
+         background-color:antiquewhite;
+     }
+    
+     .card:hover {
+        box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+    }
+</style>
+@{ ViewBag.Title = "Sample";}
+<h1>Weather</h1>
+
+<div id="apiDiv">
+    
+    @using (Html.BeginForm())
+    {
+
+        <div class="searchArea">
+            <span>Put in City or Zipcode for Weather Report</span>
+            <div id="searchAreaDetail">
+                @Html.TextBoxFor(m => m.requestString, new { @class = "form-control" })
+                <span class="alert-warning">@Model.apiResponse</span>
+                <br />
+                <span>
+                    <input type="button" id="btn_curLocation" name="btn_curLocation" value="Get current location" class="btn btn-info" />
+                    @Html.HiddenFor(m => m.curlat)
+                    @Html.HiddenFor(m => m.curlon)
+                </span>
+                <button name="submit" class="btn btn-success" >Submit</button>
+            </div>
+            
+        </div> 
+       
+    }
+   
+    @if (Model.rootObject != null)
+                {
+        <fieldset class="scheduler-border">
+            <legend class="scheduler-border">Today is</legend>
+            <div id="message">
+           
+                    <div>@Html.LabelFor(m => m.rootObject, Model.rootObject.name), @Html.LabelFor(m => m.rootObject, Model.rootObject.sys.country)</div>
+                    <div>Windy - @Html.LabelFor(m => m.rootObject, Model.rootObject.wind.speed.ToString())</div>
+                    <div> @Html.LabelFor(m => m.rootObject, Model.rootObject.main.temp.ToString()) °C</div>
+                    <div>Huminity - @Html.LabelFor(m => m.rootObject, Model.rootObject.main.humidity.ToString())</div>
+                    <div>@Html.LabelFor(m => m.rootObject, Model.rootObject.weather[0].description)</div>
+           
+            </div>
+        </fieldset>
+    }
+     
+        <div id="map">
+
+        </div>
+
+    <fieldset class="scheduler-border">
+        <legend class="scheduler-border">Comming week</legend>
+        <div id="foreCastArea" style="width:auto;">
+            @if (Model.forecastResponse != null)
+            {
+                    
+               foreach (var dayitem in Model.forecastResponse)
+               {
+                    <div class="card">
+                        <div class="card-header">@Html.LabelFor(m => m.forecastResponse, dayitem.date)</div>
+                        <div class="card-body">
+                            <div>@dayitem.day.condition.text</div>
+                            <div>@dayitem.day.avgtemp_c °C</div>
+                            <div>@dayitem.day.maxwind_kph Kph</div>
+                        </div>
+                        
+                    </div>
+                    
+                }
+            }
+        </div>
+    </fieldset>
+
+        <fieldset class="scheduler-border">
+            <legend class="scheduler-border">Historical Search</legend>
+
+            <div id="historyarea">
+                @if (Model.historySearchs != null)
+                {
+                    <table class="table table-hover">
+                        <tr><td>Name</td><td>Latitude</td><td>Longtitude</td></tr>
+                        @foreach (var itemH in Model.historySearchs)
+                        {
+                            <tr>
+                                <td>@Html.LabelFor(m => m.historySearchs, itemH.nameLocation)</td>
+                                <td>@Html.LabelFor(m => m.historySearchs, itemH.coord.lat.ToString())</td>
+                                <td>@Html.LabelFor(m => m.historySearchs, itemH.coord.lon.ToString())</td>
+                                <td></td>
+                            </tr>
+                        }
+                    </table>
+                }
+            </div>
+        </fieldset>
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+
+
+<script>
+    $(document).ready(function () {
+        var map, infoWindow;
+        $("#btn_curLocation").on("click", function () {
+            $("#curlat").val("");
+            $("#curlon").val("");
+            $("#requestString").val("");
+           
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition);
+            } else {
+                $("#currentLocation").append("Geolocation is not supported by this browser.");
+            }
+            
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    infoWindow = new google.maps.InfoWindow({ map: map });
+                    var pos = { lat: position.coords.latitude, lng: position.coords.longitude };
+                    infoWindow.setPosition(pos);
+                    infoWindow.setContent("Found your location <br />Lat : " + position.coords.latitude + " </br>Lang :" + position.coords.longitude);
+                    infoWindow.open(map);
+                    
+                });
+            } else {
+                console.log("Browser doesn't support geolocation!");
+            }
+        });
+        function showPosition(position) {
+
+            $("#curlat").val(position.coords.latitude);
+            $("#curlon").val(position.coords.longitude);
+            alert("Already got your location");
+            //$("#map").css("width", "40%");
+            //$("#map").css("height", "200px");
+        }
+
+       
+        //====================================POI not done yet===============================================
+        
+        //function initMap() {
+        //    var mapCenter = new google.maps.LatLng(-34.397, 150.644); //Google map Coordinates
+        //    map = new google.maps.Map($("#map")[0], {
+        //        center: mapCenter,
+        //        zoom: 8
+        //    });
+        //    $("#map").css("width", "40%");
+        //    $("#map").css("height", "200px");
+        //}
+
+        //$("#historyarea table tr").click(function () {
+            //alert($(this).html());
+            //var latInfo = $(this).find("td label:eq(0)").html();
+            //var lonInfo = $(this).find("td label:eq(1)").html();
+            //alert(latInfo + "-----" + lonInfo);
+
+            //if ("geolocation" in navigator) {
+            //    navigator.geolocation.getCurrentPosition(function (position) {
+            //        position.coords.latitude = latInfo;
+            //        position.coords.longitude = lonInfo;
+            //        infoWindow = new google.maps.InfoWindow({ map: map });
+            //        var pos = { lat: position.coords.latitude, lng: position.coords.longitude };
+            //        infoWindow.setPosition(pos);
+            //        infoWindow.setContent("Found your location <br />Lat : " + position.coords.latitude + " </br>Lang :" + position.coords.longitude);
+            //        map.panTo(pos);
+            //    });
+            //} else {
+            //    console.log("Browser doesn't support geolocation!");
+            //}
+        //});
+    });
+</script>
+@*<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCoJXtzCqh4k3mVwNU9OJsLg22M0KjQXXE&callback=initMap" async defer></script>*@
